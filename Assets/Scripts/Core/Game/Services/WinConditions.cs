@@ -19,7 +19,7 @@ public class WinConditions
          
     }
 
-    bool IsVictory()
+    public bool IsVictory()
     {
         foreach (var kvp in conditions)
             if (!kvp.Value) return false;

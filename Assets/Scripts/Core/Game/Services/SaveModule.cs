@@ -74,10 +74,10 @@ public class SaveData
     public int TutorialStage;
     public bool IsSound;
     public bool IsMusic;
-    public bool IsVibro; 
+    public bool IsVibro;
     public SaveData()
     {
         Level = 0;
-        MetaResources = 0;  
+        MetaResources = 0;
     }
-} 
+}

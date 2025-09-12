@@ -23,8 +23,7 @@ public abstract class State : MonoBehaviour
 
     }
     protected virtual void Update()
-    {
-
+    { 
     }
     public virtual Coroutine RunCoroutine(IEnumerator coroutine, Action callback = null)
     {

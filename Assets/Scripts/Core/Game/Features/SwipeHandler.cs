@@ -1,0 +1,96 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class SwipeHandler : MonoBehaviour
+{
+    public Board _board;
+
+    private List<Vector2Int> selected = new();
+    private LineRenderer lineRenderer;
+
+    // События для PlayState
+    public event Action<string> OnWordFound;
+    public event Action<string> OnInvalidSwipe;
+
+    public void Init(Board board)
+    {
+        _board = board;
+        lineRenderer = GetComponent<LineRenderer>();
+        lineRenderer.positionCount = 0;
+        
+        lineRenderer.startWidth = 0.08f;
+        lineRenderer.endWidth = 0.08f;
+        lineRenderer.startColor = Color.yellow;
+        lineRenderer.endColor = Color.yellow;
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+    }
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            selected.Clear();
+            lineRenderer.positionCount = 0;
+            TrySelect();
+        }
+        else if (Input.GetMouseButton(0))
+        {
+            TrySelect();
+            UpdateLineRenderer();
+        }
+        else if (Input.GetMouseButtonUp(0))
+        {
+            EndSwipe();
+            lineRenderer.positionCount = 0;
+        }
+    }
+
+    private void TrySelect()
+    { 
+        Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 touchPos = new Vector2(worldPoint.x, worldPoint.y);
+
+        // 2D Raycast
+        RaycastHit2D hit = Physics2D.Raycast(touchPos, Vector2.zero);
+        if (hit.collider != null)
+        {
+            var cell = hit.collider.GetComponent<CellView>();
+            if (cell != null && !selected.Contains(cell.GetPos()))
+            {
+                selected.Add(cell.GetPos());
+            }
+        }
+    } 
+
+    private void UpdateLineRenderer()
+    {
+        lineRenderer.positionCount = selected.Count;
+        for (int i = 0; i < selected.Count; i++)
+        {
+            Vector3 worldPos = _board.GetCell(selected[i]).transform.position;
+            lineRenderer.SetPosition(i, worldPos);
+        }
+    }
+
+    private void EndSwipe()
+    {
+        if (selected.Count == 0) return;
+
+        string word = string.Concat(selected.Select(c => _board.GetCell(c).Letter));
+
+        if (_board.levelData.Words.Contains(word))
+        {
+            OnWordFound?.Invoke(word);
+            _board.RemoveCells(selected);
+        }
+        else
+        {
+            OnInvalidSwipe?.Invoke(word);
+        }
+
+        selected.Clear();
+        lineRenderer.positionCount = 0;
+    }
+}

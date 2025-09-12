@@ -1,6 +1,3 @@
-using NUnit.Framework.Interfaces;
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerEntity : SourceEntity
@@ -43,7 +40,7 @@ public class PlayerEntity : SourceEntity
     }
 
     public void Load()
-    {  
+    {   
         var saveData = SaveModule.Load<SaveData>(); 
 
         TutorialStage = saveData.TutorialStage;

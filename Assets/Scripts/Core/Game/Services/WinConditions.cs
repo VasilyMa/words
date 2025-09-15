@@ -29,6 +29,5 @@ public class WinConditions
 
 public enum WinCondition
 {
-    RemoveAllTiles,
-    TableClear
+    CollectStars, 
 }

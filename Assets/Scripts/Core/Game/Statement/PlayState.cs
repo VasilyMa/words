@@ -4,64 +4,62 @@ using UnityEngine;
 public class PlayState : State
 {
     [Header("Audio")]
-    [SerializeField] protected AudioClip _audioWin;
-    [SerializeField] protected AudioClip _audioLose;
-    protected AudioSource _audioSource;
+    [SerializeField] private AudioClip _audioWin;
+    [SerializeField] private AudioClip _audioLose;
+    private AudioSource _audioSource;
 
     [Header("FX")]
-    [SerializeField] protected Transform mergeEffect;
-    [SerializeField] protected Vector2 offset;
+    [SerializeField] private Transform mergeEffect;
+    [SerializeField] private Vector2 offset;
 
     [Header("Game References")]
-    [SerializeField] protected LevelData levelData;
-    [SerializeField] protected Board board;
-    [SerializeField] protected SwipeHandler swipeHandler;
+    [SerializeField] private LevelData levelData;
+    [SerializeField] private Board board;
+    [SerializeField] private SwipeHandler swipeHandler;
 
-    protected Camera _camera;
-    protected WinConditions _winConditions;
+    private Camera _camera;
+    private WinConditions _winConditions;
 
-    protected PlayStatus _status;
-    protected int _resultValue;
+    private PlayStatus _status;
+    private int _resultValue;
+    private int collectedStars = 0;
 
     public event Action<PlayStatus> PlayStatusChanged;
-
     public static new PlayState Instance => (PlayState)State.Instance;
     public int GetResaultValue => _resultValue;
 
-    // ==========================
-    // LIFECYCLE
-    // ==========================
-
     protected override void Awake()
-    { 
+    {
         _camera = Camera.main;
+
+        // Загружаем словарь
+        TextAsset dictionaryFile = Resources.Load<TextAsset>("Dictionary/words");
+        WordValidator.Init(levelData, dictionaryFile);
 
         _audioSource = GetComponent<AudioSource>();
         if (_audioSource == null)
             _audioSource = gameObject.AddComponent<AudioSource>();
 
-        // создаём WinConditions с нужными условиями
-        _winConditions = new WinConditions(new[] {
-            WinCondition.RemoveAllTiles,
-            WinCondition.TableClear
-        });
+        // Создаём WinConditions
+        _winConditions = new WinConditions(new[] { WinCondition.CollectStars });
 
-        // инициализация борда
+        // Инициализация борда
         if (board != null && levelData != null)
             board.Init(levelData);
 
+        // Инициализация SwipeHandler
         if (swipeHandler != null)
             swipeHandler.Init(board);
     }
 
     protected override void Start()
-    { 
-        _status = PlayStatus.play; 
+    {
+        _status = PlayStatus.play;
 
         if (swipeHandler != null)
         {
-            swipeHandler.OnWordFound += HandleWordFound;
-            swipeHandler.OnInvalidSwipe += HandleInvalidSwipe;
+            // Подписываемся на событие свайпа с проверкой слова
+            swipeHandler.OnWordChecked += HandleWordChecked;
         }
     }
 
@@ -71,47 +69,53 @@ public class PlayState : State
 
         if (_status != PlayStatus.play) return;
 
-        // проверяем все условия WinConditions
-        if (_winConditions != null && IsVictory())
-        {
+        // Проверка условий победы
+        if (_winConditions != null && _winConditions.IsVictory())
             SetStatus(PlayStatus.win);
-        }
     }
 
-    protected virtual void OnDestroy()
+    protected void OnDestroy()
     {
         if (swipeHandler != null)
-        {
-            swipeHandler.OnWordFound -= HandleWordFound;
-            swipeHandler.OnInvalidSwipe -= HandleInvalidSwipe;
-        }
+            swipeHandler.OnWordChecked -= HandleWordChecked;
     }
 
     // ==========================
     // GAMEPLAY HANDLERS
     // ==========================
 
-    private void HandleWordFound(string word)
+    private void HandleWordChecked(string word, WordCheckResult result, int starsCollectedThisSwipe)
     {
-        Debug.Log("Word completed: " + word);
-        _resultValue += word.Length;
+        switch (result)
+        {
+            case WordCheckResult.LevelWord:
+                collectedStars += starsCollectedThisSwipe; // добавляем звёзды
+                _resultValue += word.Length;              // начисляем очки
+                SpawnFX();
+                _winConditions.SetCompleted(WinCondition.CollectStars, collectedStars >= levelData.totalStars);
+                break;
 
+            case WordCheckResult.Bonus:
+                _resultValue += word.Length;
+                SpawnFX();
+                break;
+
+            case WordCheckResult.None:
+                Debug.Log($"Invalid word: {word}");
+                break;
+        }
+
+        if (_winConditions.IsVictory())
+            SetStatus(PlayStatus.win);
+    }
+
+    private void SpawnFX()
+    {
         if (mergeEffect != null)
         {
             var fx = Instantiate(mergeEffect, Vector3.zero, Quaternion.identity);
             fx.position = _camera.ScreenToWorldPoint(Input.mousePosition) + (Vector3)offset;
         }
-
-        // пример: если все тайлы удалены
-        /*if (board != null && board.AllTilesCleared())
-        {
-            _winConditions.SetCompleted(WinCondition.RemoveAllTiles);
-        }*/
-    }
-
-    private void HandleInvalidSwipe(string word)
-    {
-        Debug.Log("Invalid word: " + word);
     }
 
     // ==========================
@@ -130,25 +134,11 @@ public class PlayState : State
                 if (_audioWin != null)
                     _audioSource.PlayOneShot(_audioWin);
                 break;
-
             case PlayStatus.lose:
                 if (_audioLose != null)
                     _audioSource.PlayOneShot(_audioLose);
                 break;
         }
-    }
-
-    private bool IsVictory()
-    {
-        // приватный метод для проверки WinConditions
-        return _winConditions != null && _winConditionsVictory();
-    }
-
-    private bool _winConditionsVictory()
-    {
-        // используем метод IsVictory из твоего класса через рефлексию или делаем публичным
-        // проще всего сделать публичный метод в WinConditions:
-        return _winConditions.IsVictory();
     }
 
     public enum PlayStatus

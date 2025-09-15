@@ -10,16 +10,18 @@ public class SwipeHandler : MonoBehaviour
     private List<Vector2Int> selected = new();
     private LineRenderer lineRenderer;
 
-    // События для PlayState
-    public event Action<string> OnWordFound;
-    public event Action<string> OnInvalidSwipe;
+    // Событие: слово, результат проверки, сколько звёзд собрано
+    public event Action<string, WordCheckResult, int> OnWordChecked;
 
     public void Init(Board board)
     {
         _board = board;
+
         lineRenderer = GetComponent<LineRenderer>();
+        if (lineRenderer == null)
+            lineRenderer = gameObject.AddComponent<LineRenderer>();
+
         lineRenderer.positionCount = 0;
-        
         lineRenderer.startWidth = 0.08f;
         lineRenderer.endWidth = 0.08f;
         lineRenderer.startColor = Color.yellow;
@@ -48,11 +50,10 @@ public class SwipeHandler : MonoBehaviour
     }
 
     private void TrySelect()
-    { 
+    {
         Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Vector2 touchPos = new Vector2(worldPoint.x, worldPoint.y);
 
-        // 2D Raycast
         RaycastHit2D hit = Physics2D.Raycast(touchPos, Vector2.zero);
         if (hit.collider != null)
         {
@@ -62,7 +63,7 @@ public class SwipeHandler : MonoBehaviour
                 selected.Add(cell.GetPos());
             }
         }
-    } 
+    }
 
     private void UpdateLineRenderer()
     {
@@ -80,15 +81,18 @@ public class SwipeHandler : MonoBehaviour
 
         string word = string.Concat(selected.Select(c => _board.GetCell(c).Letter));
 
-        if (_board.levelData.Words.Contains(word))
+        var result = WordValidator.CheckWord(word);
+
+        int starsCollected = 0;
+
+        if (result != WordCheckResult.None)
         {
-            OnWordFound?.Invoke(word);
-            _board.RemoveCells(selected);
+            // Удаляем буквы с доски и получаем количество собранных звёздочек
+            starsCollected = _board.RemoveCells(selected);
         }
-        else
-        {
-            OnInvalidSwipe?.Invoke(word);
-        }
+
+        // Вызываем событие с результатом и количеством собранных звёзд
+        OnWordChecked?.Invoke(word, result, starsCollected);
 
         selected.Clear();
         lineRenderer.positionCount = 0;

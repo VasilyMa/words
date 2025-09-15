@@ -20,23 +20,30 @@ public class Board : MonoBehaviour
 
     public void Init(LevelData data)
     {
-        this.levelData = data;
+        levelData = data;
         availableLetters = string.Join("", levelData.Words).Distinct().ToArray();
         Generate();
+        PlaceInitialStars(); // ✅ расставляем начальные звезды после генерации
+    }
+
+    private Vector3 GetCellLocalPosition(int row, int col)
+    {
+        float width = cols * cellSize;
+        float height = rows * cellSize;
+        Vector3 offset = new Vector3(-width / 2 + cellSize / 2, height / 2 - cellSize / 2, 0);
+        return new Vector3(col * cellSize, -row * cellSize, 0) + offset;
     }
 
     public void Generate()
-    { 
+    {
         grid = new CellView[rows, cols];
 
-        // 1️⃣ Создаём пустую сетку
+        // Создаём пустую сетку
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
                 grid[r, c] = null;
 
         System.Random rng = new System.Random();
-
-        // 2️⃣ Сортируем слова по длине (сначала короткие)
         var sortedWords = levelData.Words.OrderBy(w => w.Length).ToList();
 
         foreach (var word in sortedWords)
@@ -48,18 +55,15 @@ public class Board : MonoBehaviour
             {
                 attempts++;
 
-                // случайное направление: горизонталь, вертикаль, диагональ
                 int dir = rng.Next(0, 3);
                 int dr = 0, dc = 0;
-                if (dir == 0) dc = 1;        // горизонталь
-                else if (dir == 1) dr = 1;   // вертикаль
-                else { dr = 1; dc = 1; }     // диагональ
+                if (dir == 0) dc = 1;
+                else if (dir == 1) dr = 1;
+                else { dr = 1; dc = 1; }
 
-                // случайная стартовая позиция
                 int startRow = rng.Next(0, rows);
                 int startCol = rng.Next(0, cols);
 
-                // проверяем, помещается ли слово
                 bool canPlace = true;
                 for (int i = 0; i < word.Length; i++)
                 {
@@ -91,11 +95,16 @@ public class Board : MonoBehaviour
                     {
                         var cell = Instantiate(cellPrefab, container);
                         cell.Setup(this, new Vector2Int(r, c), word[i], cellSize);
+
+                        Vector3 startPos = GetCellLocalPosition(r, c) + new Vector3(0, rows * cellSize, 0);
+                        cell.transform.localPosition = startPos;
+                        cell.transform.DOLocalMove(GetCellLocalPosition(r, c), 0.3f).SetEase(Ease.OutBounce);
+
                         grid[r, c] = cell;
                     }
                     else
                     {
-                        grid[r, c].SetLetter(word[i]); // обновляем существующую букву
+                        grid[r, c].SetLetter(word[i]);
                     }
                 }
 
@@ -103,7 +112,7 @@ public class Board : MonoBehaviour
             }
         }
 
-        // 3️⃣ Заполняем оставшиеся пустые клетки случайными буквами из availableLetters
+        // Заполняем оставшиеся пустые клетки случайными буквами
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
@@ -112,69 +121,28 @@ public class Board : MonoBehaviour
                 {
                     var cell = Instantiate(cellPrefab, container);
                     cell.Setup(this, new Vector2Int(r, c), RandomLetter(), cellSize);
+
+                    Vector3 startPos = GetCellLocalPosition(r, c) + new Vector3(0, rows * cellSize, 0);
+                    cell.transform.localPosition = startPos;
+                    cell.transform.DOLocalMove(GetCellLocalPosition(r, c), 0.3f).SetEase(Ease.OutBounce);
+
                     grid[r, c] = cell;
                 }
             }
         }
-
-        CenterGrid();
     }
 
-    public void CenterGrid()
+    public void PlaceInitialStars()
     {
-        if (grid == null) return;
-
-        // Размер сетки
-        float width = cols * cellSize;
-        float height = rows * cellSize;
-
-        // Сдвиг, чтобы верхний левый угол был по центру
-        Vector3 offset = new Vector3(-width / 2 + cellSize / 2, height / 2 - cellSize / 2, 0);
-
+        List<CellView> allCells = new List<CellView>();
         for (int r = 0; r < rows; r++)
-        {
             for (int c = 0; c < cols; c++)
-            {
-                var cell = grid[r, c];
-                if (cell != null)
-                {
-                    // текущая позиция относительно сетки + смещение
-                    cell.transform.localPosition = new Vector3(c * cellSize, -r * cellSize, 0) + offset;
-                }
-            }
-        }
-    }
+                allCells.Add(grid[r, c]);
 
-    private void SpawnCell(int row, int col, char letter)
-    {
-        if (grid[row, col] != null)
-        {
-            grid[row, col].SetLetter(letter, false); // просто обновляем букву
-            return;
-        }
+        allCells = allCells.OrderBy(x => UnityEngine.Random.value).ToList();
 
-        var cell = Instantiate(cellPrefab, container);
-        cell.Setup(this, new Vector2Int(row, col), letter, cellSize);
-        grid[row, col] = cell;
-    }
-
-    public char RandomLetter()
-    {
-        return availableLetters[Random.Range(0, availableLetters.Length)];
-    }
-
-    public CellView GetCell(Vector2Int pos)
-    {
-        return grid[pos.x, pos.y];
-    }
-
-    public void RemoveCells(List<Vector2Int> cells)
-    {
-        foreach (var c in cells)
-        {
-            grid[c.x, c.y].SetEmpty();
-        }
-        Collapse();
+        for (int i = 0; i < Mathf.Min(levelData.initialStars, allCells.Count); i++)
+            allCells[i].SetStar(true);
     }
 
     public void Collapse()
@@ -193,48 +161,75 @@ public class Board : MonoBehaviour
                 }
                 else if (emptyCount > 0)
                 {
-                    var targetRow = row + emptyCount;
-                    var targetCell = grid[targetRow, col];
+                    var targetCell = grid[row + emptyCount, col];
+                    targetCell.SetLetter(cell.Letter);
+                    targetCell.SetStar(cell.HasStar);
 
-                    targetCell.SetLetter(cell.Letter); // обновляем логически
                     cell.SetEmpty();
 
-                    // DoTween анимация
                     Vector3 fromPos = cell.transform.localPosition;
-                    Vector3 toPos = targetCell.transform.localPosition;
+                    Vector3 toPos = GetCellLocalPosition(row + emptyCount, col);
                     targetCell.transform.localPosition = fromPos;
-                    targetCell.transform.DOLocalMove(toPos, 0.3f);
+                    targetCell.transform.DOLocalMove(toPos, 0.3f).SetEase(Ease.OutQuad);
                 }
             }
 
-            // создаём новые буквы сверху
-            for (int i = 0; i < emptyCount; i++)
+            // новые буквы сверху
+            for (int row = 0; row < emptyCount; row++)
             {
-                int row = i;
-                var letter = RandomLetter();
-
                 var cell = grid[row, col];
-                cell.SetLetter(letter);
-
-                // стартовая позиция выше сетки
-                Vector3 from = cell.transform.localPosition + new Vector3(0, 1f, 0); // 1f = высота падения
-                Vector3 to = cell.transform.localPosition;
-                cell.transform.localPosition = from;
-                cell.transform.DOLocalMove(to, 0.3f);
+                SpawnNewLetter(cell, row, col);
             }
         }
     }
 
-
-    /// <summary>
-    /// Проверка, что все клетки пусты (для WinCondition)
-    /// </summary>
-    public bool AllTilesCleared()
+    private void SpawnNewLetter(CellView cell, int row, int col)
     {
-        foreach (var cell in grid)
+        char newLetter = RandomLetter();
+        cell.SetLetter(newLetter);
+
+        if (levelData.spawnedLaterStars > 0 && UnityEngine.Random.value < 0.2f)
         {
-            if (!cell.IsEmpty) return false;
+            cell.SetStar(true);
+            levelData.spawnedLaterStars--;
         }
-        return true;
+        else
+        {
+            cell.SetStar(false);
+        }
+
+        Vector3 fromPos = GetCellLocalPosition(row, col) + new Vector3(0, cellSize * 2f, 0);
+        Vector3 toPos = GetCellLocalPosition(row, col);
+        cell.transform.localPosition = fromPos;
+        cell.transform.DOLocalMove(toPos, 0.3f).SetEase(Ease.OutQuad);
+    }
+
+    public int RemoveCells(List<Vector2Int> cells)
+    {
+        int starsCollected = 0;
+
+        foreach (var c in cells)
+        {
+            if (grid[c.x, c.y].HasStar)
+            {
+                starsCollected++;
+                grid[c.x, c.y].SetStar(false);
+            }
+
+            grid[c.x, c.y].SetEmpty();
+        }
+
+        Collapse();
+        return starsCollected;
+    }
+
+    public char RandomLetter()
+    {
+        return availableLetters[UnityEngine.Random.Range(0, availableLetters.Length)];
+    }
+
+    public CellView GetCell(Vector2Int pos)
+    {
+        return grid[pos.x, pos.y];
     }
 }

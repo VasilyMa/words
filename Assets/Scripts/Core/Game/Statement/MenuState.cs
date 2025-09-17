@@ -1,16 +1,16 @@
 using UnityEngine;
 
-public class MenuState : MonoBehaviour
+public class MenuState : State
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    protected override void Awake()
     {
-        
+        if (UIModule.OpenCanvas<MainMenuCanvas>(out var mainMenuCanvas))
+        {
+            mainMenuCanvas.OpenPanel<MainMenuPanel>();
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    protected override void Start()
     {
-        
     }
 }

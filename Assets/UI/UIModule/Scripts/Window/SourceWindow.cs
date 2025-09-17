@@ -4,6 +4,7 @@ public abstract class SourceWindow : MonoBehaviour
 {
     protected SourcePanel _panel;
     protected object _data;
+    [UIInject] protected PlayState _state;
 
     /// <summary>
     /// Invoke at once when UI Module Initialized

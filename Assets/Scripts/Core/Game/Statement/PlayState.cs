@@ -32,6 +32,8 @@ public class PlayState : State
     {
         _camera = Camera.main;
 
+        UIModule.Inject(this);
+
         // Загружаем словарь
         TextAsset dictionaryFile = Resources.Load<TextAsset>("Dictionary/words");
         WordValidator.Init(levelData, dictionaryFile);
@@ -50,6 +52,16 @@ public class PlayState : State
         // Инициализация SwipeHandler
         if (swipeHandler != null)
             swipeHandler.Init(board);
+    }
+
+    public void Restart()
+    {
+
+    }
+
+    public void Back()
+    {
+
     }
 
     protected override void Start()

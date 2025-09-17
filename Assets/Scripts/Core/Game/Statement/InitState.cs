@@ -61,6 +61,8 @@ public class InitState : State
 
     private void LoadTargetScene()
     {
+        SceneManager.LoadScene(targetSceneName);
+        return;
         //AnalyticsHolder.GameStart();   
         if (PlayerEntity.Instance.TutorDone)
             SceneManager.LoadScene(targetSceneName);

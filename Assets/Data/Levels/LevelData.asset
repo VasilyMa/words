@@ -33,3 +33,6 @@ MonoBehaviour:
   - rise
   - east
   - west
+  totalStars: 3
+  initialStars: 3
+  spawnedLaterStars: 0

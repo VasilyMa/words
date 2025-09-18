@@ -74,14 +74,14 @@ public class CellView : MonoBehaviour
             if (value)
             {
                 // Мигающая анимация для привлечения внимания
-                starIcon.transform.DOPunchScale(new Vector3(0.3f, 0.3f, 0.3f) * 0.2f, 1f, 1, 0.5f)
+                starIcon.transform.DOPunchScale(new Vector3(0.6f, 0.6f, 0.6f) * 0.2f, 1f, 1, 0.5f)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetId(this); // чтобы потом можно было Kill по Cell
             }
             else
             {
                 DOTween.Kill(this); // убираем анимацию
-                if (starIcon != null) starIcon.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+                if (starIcon != null) starIcon.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
             }
         }
     }

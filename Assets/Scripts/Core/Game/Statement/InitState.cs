@@ -30,9 +30,10 @@ public class InitState : State
 
         UIModule.Initialize();
 
-        // 2. Конфиг (ждём завершения)
+        // 2. Конфиг (ждём завершения) 
         var configLoaded = new TaskCompletionSource<bool>();
         ConfigModule.Initialize(this, () => configLoaded.SetResult(true));
+
         await configLoaded.Task;
 
         // 3. SDK (по порядку)
@@ -61,8 +62,10 @@ public class InitState : State
 
     private void LoadTargetScene()
     {
+        Debug.Log("Load scene menu");
         SceneManager.LoadScene(targetSceneName);
         return;
+
         //AnalyticsHolder.GameStart();   
         if (PlayerEntity.Instance.TutorDone)
             SceneManager.LoadScene(targetSceneName);

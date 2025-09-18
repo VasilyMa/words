@@ -9,6 +9,7 @@ public class Board : MonoBehaviour
     public int rows = 6;
     public int cols = 6;
     public float cellSize = 1f;
+    public float spacing = 0.1f;
 
     [Header("References")]
     public LevelData levelData;
@@ -25,15 +26,15 @@ public class Board : MonoBehaviour
         Generate();
         PlaceInitialStars(); // ✅ расставляем начальные звезды после генерации
     }
-
     private Vector3 GetCellLocalPosition(int row, int col)
     {
-        float width = cols * cellSize;
-        float height = rows * cellSize;
-        Vector3 offset = new Vector3(-width / 2 + cellSize / 2, height / 2 - cellSize / 2, 0);
-        return new Vector3(col * cellSize, -row * cellSize, 0) + offset;
-    }
+        float step = cellSize + spacing; // ✅ размер шага = размер клетки + отступ
+        float width = cols * step;
+        float height = rows * step;
 
+        Vector3 offset = new Vector3(-width / 2 + step / 2, height / 2 - step / 2, 0);
+        return new Vector3(col * step, -row * step, 0) + offset;
+    }
     public void Generate()
     {
         grid = new CellView[rows, cols];

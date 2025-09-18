@@ -44,5 +44,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 663106f6081a6014e8167ac4123e3cb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  TargetScene: {fileID: 0}
-  targetSceneName: 
+  TargetScene: {fileID: 102900000, guid: 438e63fa463fbb4459449619081d3868, type: 3}
+  targetSceneName: MenuScene

@@ -12,8 +12,14 @@ EditorBuildSettings:
     path: Assets/Scenes/MenuScene.unity
     guid: 438e63fa463fbb4459449619081d3868
   - enabled: 1
-    path: Assets/Scenes/PlayScene.unity
+    path: Assets/Scenes/WordLinkScene.unity
     guid: 2201d498ca12e2f4c875a1c536f4173f
+  - enabled: 1
+    path: Assets/Scenes/WordPickScene.unity
+    guid: 69bcc492c931db54397faea48cfb3221
+  - enabled: 1
+    path: Assets/Scenes/WordBlastScene.unity
+    guid: 91aa5c7a559265e4c98283e9765b4e71
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

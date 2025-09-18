@@ -24,7 +24,7 @@ public class ButtonHoldListener : MonoBehaviour, IPointerDownHandler, IPointerUp
     [Tooltip("—рабатывает один раз, когда удержание превысит holdThreshold")]
     public UnityEvent OnHoldComplete;
 
-    private bool isInteractable;
+    private bool isInteractable = true;
 
     private bool isPressed;
     private bool thresholdTriggered;

@@ -19,7 +19,7 @@ public class PlayState : State
 
     private Camera _camera;
     private WinConditions _winConditions;
-
+    public event Action<int> ScoreValueChanged;
     private PlayStatus _status;
     private int _resultValue;
     private int collectedStars = 0;
@@ -52,6 +52,11 @@ public class PlayState : State
         // Инициализация SwipeHandler
         if (swipeHandler != null)
             swipeHandler.Init(board);
+
+        if (UIModule.OpenCanvas<PlayMenuCanvas>(out var playMenuCanvas))
+        {
+            playMenuCanvas.OpenPanel<PlayPanel>();
+        }
     }
 
     public void Restart()
@@ -116,6 +121,8 @@ public class PlayState : State
                 Debug.Log($"Invalid word: {word}");
                 break;
         }
+
+        ScoreValueChanged?.Invoke(_resultValue);
 
         if (_winConditions.IsVictory())
             SetStatus(PlayStatus.win);

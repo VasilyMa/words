@@ -7,7 +7,10 @@ public class LevelData : ScriptableObject
     public int LevelID;
     public List<string> Words;
 
-    public int totalStars;        // сколько всего звЄзд нужно собрать дл€ победы
-    public int initialStars;      // сколько звЄзд размещаетс€ сразу на поле
-    public int spawnedLaterStars; // сколько добавл€етс€ потом при падении букв
+    [Header("—колько слов собрать за уровень")]public int targetlWordCount;
+    [Header("—колько в начале уровн€ будет звезд")] public int initialStars;
+    [Header("—колько еще может быть звезд за уровень")]public int spawnedLaterStars; 
+    [Header("¬еро€тность выпадение звезд")]public float chanceToSpawnStars; 
+    [Header("Ѕонус ко времени")]public float timeBonusMultiplier; 
+    [Header("Ѕонус ко времени за собранное слово")]public AnimationCurve bonus; 
 }

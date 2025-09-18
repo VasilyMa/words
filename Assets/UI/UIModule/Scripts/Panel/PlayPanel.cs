@@ -17,9 +17,9 @@ public class PlayPanel : SourcePanel
 
     public override void OnOpen(params Action[] onComplete)
     {
-        _state.ScoreValueChanged += OnScoreChanged; 
-        var callback = AddCallback(onComplete, _timer.Invoke); 
-        base.OnOpen(callback);
+        _state.ScoreValueChanged += OnScoreChanged;
+        _state.OnCountdownChange += _timer.CountdownChange; 
+        base.OnOpen(onComplete);
     }
 
     public override void OnCLose(params Action[] onComplete)
@@ -40,6 +40,7 @@ public class PlayPanel : SourcePanel
     public override void OnDispose()
     {
         _state.ScoreValueChanged -= OnScoreChanged;
+        _state.OnCountdownChange -= _timer.CountdownChange;
         _btnSettings.onClick.RemoveAllListeners();
         base.OnDispose();
     }

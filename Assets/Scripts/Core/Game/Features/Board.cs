@@ -18,10 +18,12 @@ public class Board : MonoBehaviour
 
     private CellView[,] grid;
     private char[] availableLetters;
+    private int remainingStars;
 
     public void Init(LevelData data)
     {
         levelData = data;
+        remainingStars = data.spawnedLaterStars;
         availableLetters = string.Join("", levelData.Words).Distinct().ToArray();
         Generate();
         PlaceInitialStars(); // ✅ расставляем начальные звезды после генерации
@@ -189,10 +191,10 @@ public class Board : MonoBehaviour
         char newLetter = RandomLetter();
         cell.SetLetter(newLetter);
 
-        if (levelData.spawnedLaterStars > 0 && UnityEngine.Random.value < 0.2f)
-        {
-            cell.SetStar(true);
-            levelData.spawnedLaterStars--;
+        if (remainingStars > 0 && UnityEngine.Random.value < levelData.chanceToSpawnStars)
+        { 
+            cell.SetStar(true); 
+            remainingStars--;
         }
         else
         {

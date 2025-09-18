@@ -19,8 +19,8 @@ public class SwipeHandler : MonoBehaviour
     public event Action<string> OnWordProgress;
     public event Action<string, WordCheckResult, int> OnWordChecked;
     public event Action<string> OnWordFailed;
-
-    public void Init(Board board)
+    private PlayState.PlayStatus _status;
+    public void Init(PlayState state, Board board)
     {
         _board = board;
 
@@ -32,11 +32,17 @@ public class SwipeHandler : MonoBehaviour
         lineRenderer.startWidth = 0.5f;
         lineRenderer.endWidth = 0.5f;
         lineRenderer.startColor = Color.yellow;
-        lineRenderer.endColor = Color.yellow; 
+        lineRenderer.endColor = Color.yellow;
+
+        state.PlayStatusChanged += UpdateStatus;
     }
+
+    void UpdateStatus(PlayState.PlayStatus status) => _status = status; 
 
     private void Update()
     {
+        if (_status != PlayState.PlayStatus.play) return;
+        
         if (Input.GetMouseButtonDown(0))
         {
             selected.Clear();

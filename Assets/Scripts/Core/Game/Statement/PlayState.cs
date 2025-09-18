@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using UnityEngine;
 
 public class PlayState : State
@@ -16,17 +16,32 @@ public class PlayState : State
     [SerializeField] private LevelData levelData;
     [SerializeField] private Board board;
     [SerializeField] private SwipeHandler swipeHandler;
+    [SerializeField] private WordHolder wordHandler;
+
 
     private Camera _camera;
     private WinConditions _winConditions;
-    public event Action<int> ScoreValueChanged;
     private PlayStatus _status;
     private int _resultValue;
     private int collectedStars = 0;
 
+    public event Action<int> ScoreValueChanged;
     public event Action<PlayStatus> PlayStatusChanged;
+
+    // рџ”№ РџСЂРѕР±СЂР°СЃС‹РІР°РµРј СЃРѕР±С‹С‚РёСЏ РёР· SwipeHandler РЅР°СЂСѓР¶Сѓ
+    public event Action<string> OnWordProgress;
+    public event Action<string, WordCheckResult, int> OnWordChecked;
+    public event Action<string> OnWordFailed;
+    public event Action<float> OnCountdownChange;
+
     public static new PlayState Instance => (PlayState)State.Instance;
     public int GetResaultValue => _resultValue;
+    private int _targetWordCount;
+    private int _currentWordCount;
+
+    private float _countdown;
+    private float _timeBonusMultiplier;
+    private AnimationCurve _bonusTime;
 
     protected override void Awake()
     {
@@ -34,7 +49,7 @@ public class PlayState : State
 
         UIModule.Inject(this);
 
-        // Загружаем словарь
+        // Р—Р°РіСЂСѓР¶Р°РµРј СЃР»РѕРІР°СЂСЊ
         TextAsset dictionaryFile = Resources.Load<TextAsset>("Dictionary/words");
         WordValidator.Init(levelData, dictionaryFile);
 
@@ -42,42 +57,64 @@ public class PlayState : State
         if (_audioSource == null)
             _audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Создаём WinConditions
+        // РЎРѕР·РґР°С‘Рј WinConditions
         _winConditions = new WinConditions(new[] { WinCondition.CollectStars });
 
-        // Инициализация борда
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р±РѕСЂРґР°
         if (board != null && levelData != null)
             board.Init(levelData);
 
-        // Инициализация SwipeHandler
         if (swipeHandler != null)
-            swipeHandler.Init(board);
+        {
+            swipeHandler.Init(this, board);
+
+            // РїРѕРґРїРёСЃС‹РІР°РµРјСЃСЏ РёРјРµРЅРѕРІР°РЅРЅС‹РјРё РѕР±СЂР°Р±РѕС‚С‡РёРєР°РјРё
+            swipeHandler.OnWordProgress += Swipe_OnWordProgress;
+            swipeHandler.OnWordChecked += Swipe_OnWordChecked;
+            swipeHandler.OnWordFailed += Swipe_OnWordFailed;
+        }
+
+        if (wordHandler == null)
+        {
+            wordHandler = FindFirstObjectByType<WordHolder>();
+            wordHandler.Init(this);
+        }
 
         if (UIModule.OpenCanvas<PlayMenuCanvas>(out var playMenuCanvas))
         {
             playMenuCanvas.OpenPanel<PlayPanel>();
         }
-    }
 
-    public void Restart()
+        _bonusTime = levelData.bonus;
+        _timeBonusMultiplier = levelData.timeBonusMultiplier;
+        _targetWordCount = levelData.targetlWordCount;
+        _countdown = 120f;
+    }
+    private void Swipe_OnWordProgress(string word)
     {
-
+        OnWordProgress?.Invoke(word);
     }
 
-    public void Back()
+    private void Swipe_OnWordChecked(string word, WordCheckResult result, int stars)
     {
+        // СЃРЅР°С‡Р°Р»Р° РІРЅСѓС‚СЂРµРЅРЅСЏСЏ Р»РѕРіРёРєР° (РЅР°С‡РёСЃР»РµРЅРёРµ РѕС‡РєРѕРІ, Р·РІРµР·РґС‹ Рё С‚.Рґ.)
+        HandleWordChecked(word, result, stars);
 
+        // Р·Р°С‚РµРј РїСЂРѕР±СЂРѕСЃ РЅР°СЂСѓР¶Сѓ
+        OnWordChecked?.Invoke(word, result, stars);
     }
+
+    private void Swipe_OnWordFailed(string word)
+    {
+        OnWordFailed?.Invoke(word);
+    }
+
+    public void Restart() { }
+    public void Back() { }
 
     protected override void Start()
     {
         _status = PlayStatus.play;
-
-        if (swipeHandler != null)
-        {
-            // Подписываемся на событие свайпа с проверкой слова
-            swipeHandler.OnWordChecked += HandleWordChecked;
-        }
     }
 
     protected override void Update()
@@ -86,35 +123,49 @@ public class PlayState : State
 
         if (_status != PlayStatus.play) return;
 
-        // Проверка условий победы
         if (_winConditions != null && _winConditions.IsVictory())
             SetStatus(PlayStatus.win);
+
+        _countdown -= Time.deltaTime;
+
+        if (_countdown <= 0)
+        {
+            SetStatus(PlayStatus.lose);
+            _countdown = 0;
+        }
+
+        OnCountdownChange?.Invoke(_countdown);
+
     }
 
     protected void OnDestroy()
     {
         if (swipeHandler != null)
-            swipeHandler.OnWordChecked -= HandleWordChecked;
+        {
+            swipeHandler.OnWordProgress -= Swipe_OnWordProgress;
+            swipeHandler.OnWordChecked -= Swipe_OnWordChecked;
+            swipeHandler.OnWordFailed -= Swipe_OnWordFailed;
+        }
     }
 
     // ==========================
     // GAMEPLAY HANDLERS
     // ==========================
-
     private void HandleWordChecked(string word, WordCheckResult result, int starsCollectedThisSwipe)
     {
         switch (result)
         {
             case WordCheckResult.LevelWord:
-                collectedStars += starsCollectedThisSwipe; // добавляем звёзды
-                _resultValue += word.Length;              // начисляем очки
-                SpawnFX();
-                _winConditions.SetCompleted(WinCondition.CollectStars, collectedStars >= levelData.totalStars);
+                collectedStars += starsCollectedThisSwipe;
+                _resultValue += word.Length;
+                SpawnFX(); 
+                _currentWordCount++;
                 break;
 
             case WordCheckResult.Bonus:
                 _resultValue += word.Length;
                 SpawnFX();
+                _currentWordCount++;
                 break;
 
             case WordCheckResult.None:
@@ -122,10 +173,25 @@ public class PlayState : State
                 break;
         }
 
+        _winConditions.SetCompleted(WinCondition.CollectStars, _currentWordCount >= _targetWordCount);
+
         ScoreValueChanged?.Invoke(_resultValue);
+
+        AddAdditionalTime(word.Length);
 
         if (_winConditions.IsVictory())
             SetStatus(PlayStatus.win);
+    }
+
+    void AddAdditionalTime(float word)
+    {
+        float value = _bonusTime.Evaluate(word);
+
+        value *= _timeBonusMultiplier;
+
+        _countdown += value;
+
+        OnCountdownChange?.Invoke(value);
     }
 
     private void SpawnFX()
@@ -140,13 +206,12 @@ public class PlayState : State
     // ==========================
     // STATUS
     // ==========================
-
     public void SetStatus(PlayStatus newStatus)
     {
         if (_status == newStatus) return;
         _status = newStatus;
         PlayStatusChanged?.Invoke(_status);
-
+        Debug.Log($"Status update {newStatus}");
         switch (_status)
         {
             case PlayStatus.win:

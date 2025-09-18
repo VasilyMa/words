@@ -1,116 +1,113 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using DG.Tweening;
 
-/// <summary>
-/// Динамический холдер, который распределяет элементы (спрайты) по горизонтали
-/// с автоматическим изменением их размера и выравниванием по центру.
-/// </summary>
-[ExecuteAlways]
 public class WordHolder : MonoBehaviour
 {
-    [Header("Settings")]
-    public float spacing = 0.2f; // фиксированный отступ между объектами
+    private PlayState _state;
+    private LayoutWordHolder _holder;
+    [SerializeField] private WordCell _cellPrefab;
 
-    private readonly List<Transform> items = new();
-    private readonly List<float> baseSizes = new(); // исходные размеры по X
+    private readonly List<WordCell> _cells = new();
 
-    private BoxCollider2D box;
-
-    private void Awake()
+    public void Init(PlayState state)
     {
-        box = GetComponent<BoxCollider2D>();
+        _state = state;
+        _holder = GetComponentInChildren<LayoutWordHolder>();
+
+        _state.OnWordProgress += HandleProgress;
+        _state.OnWordChecked += HandleChecked;
+        _state.OnWordFailed += HandleFailed;
     }
 
-    public void AddItem(Transform item)
+    private void OnDestroy()
     {
-        if (!items.Contains(item))
+        if (_state == null) return;
+        _state.OnWordProgress -= HandleProgress;
+        _state.OnWordChecked -= HandleChecked;
+        _state.OnWordFailed -= HandleFailed;
+    }
+
+    private void HandleProgress(string currentWord)
+    {
+        UpdateCells(currentWord);
+    }
+
+    private void HandleChecked(string word, WordCheckResult result, int stars)
+    {
+        UpdateCells(word);
+
+        if (result == WordCheckResult.LevelWord)
+            AnimateSuccess(Color.green);
+        else if (result == WordCheckResult.Bonus)
+            AnimateSuccess(Color.yellow);
+
+        // сброс холдера после анимации
+        DOVirtual.DelayedCall(0.6f, ClearCells);
+    }
+
+    private void HandleFailed(string word)
+    {
+        UpdateCells(word);
+        AnimateReject();
+        DOVirtual.DelayedCall(0.6f, ClearCells);
+    }
+
+    private void UpdateCells(string word)
+    {
+        ClearCells();
+
+        for (int i = 0; i < word.Length; i++)
         {
-            items.Add(item);
-            item.SetParent(transform);
+            WordCell cell = GetOrCreateCell(i);
+            cell.SetLetter(word[i].ToString());
+            cell.gameObject.SetActive(true);
+            _holder.AddItem(cell.transform);
+        }
 
-            var sr = item.GetComponent<SpriteRenderer>();
-            if (sr != null)
-                baseSizes.Add(sr.sprite.bounds.size.x); // исходный размер из спрайта (без масштаба!)
-            else
-                baseSizes.Add(1f);
+        _holder.Recalculate();
+    }
 
-            Recalculate();
+    private void ClearCells()
+    {
+        foreach (var c in _cells)
+        {
+            if (c == null) continue;
+            _holder.DetachItem(c.transform);
+            c.gameObject.SetActive(false);
         }
     }
 
-    public void RemoveItem(Transform item)
+    private WordCell GetOrCreateCell(int index)
     {
-        int index = items.IndexOf(item);
-        if (index >= 0)
+        if (index < _cells.Count)
+            return _cells[index];
+
+        var cell = Instantiate(_cellPrefab, _holder.transform);
+        _cells.Add(cell);
+        return cell;
+    }
+
+    private void AnimateSuccess(Color targetColor)
+    {
+        foreach (var c in _cells)
         {
-            items.RemoveAt(index);
-            baseSizes.RemoveAt(index);
-            Recalculate();
+            if (!c.gameObject.activeSelf) continue;
+
+            c.AnimateColor(targetColor);
+            c.transform.DOPunchScale(Vector3.one * 0.3f, 0.4f, 5);
         }
     }
 
-    private void Update()
+    private void AnimateReject()
     {
-        if (!Application.isPlaying)
+        foreach (var c in _cells)
         {
-            // автообновление в редакторе
-            items.Clear();
-            baseSizes.Clear();
+            if (!c.gameObject.activeSelf) continue;
 
-            foreach (Transform child in transform)
-            {
-                items.Add(child);
-                var sr = child.GetComponent<SpriteRenderer>();
-                baseSizes.Add(sr != null ? sr.sprite.bounds.size.x : 1f);
-            }
-
-            Recalculate();
-        }
-    }
-
-    private void Recalculate()
-    {
-        if (box == null)
-        {
-            if (TryGetComponent<BoxCollider2D>(out var boxCollider)) box = boxCollider;
-            else return;
+            c.AnimateColor(Color.red);
         }
 
-        if (items.Count == 0) return;
-
-        float parentWidth = box.bounds.size.x;
-
-        // Сумма всех размеров и всех отступов (исходных)
-        float totalBaseSize = 0f;
-        foreach (float s in baseSizes) totalBaseSize += s;
-
-        float totalSpacing = spacing * (items.Count - 1);
-        float requiredWidth = totalBaseSize + totalSpacing;
-
-        // коэффициент уменьшения (для всего: и для объектов, и для spacing)
-        float scaleFactor = Mathf.Min(1f, parentWidth / requiredWidth);
-
-        float scaledSpacing = spacing * scaleFactor;
-
-        float totalWidth = totalBaseSize * scaleFactor + scaledSpacing * (items.Count - 1);
-
-        // центрируем
-        float startX = -totalWidth / 2f;
-        float cursor = startX;
-
-        for (int i = 0; i < items.Count; i++)
-        {
-            var item = items[i];
-            float baseSize = baseSizes[i];
-
-            item.localScale = Vector3.one * scaleFactor;
-
-            float halfWidth = baseSize * scaleFactor / 2f;
-            float x = cursor + halfWidth;
-
-            item.localPosition = new Vector3(x, 0, 0);
-
-            cursor += baseSize * scaleFactor + scaledSpacing;
-        }
+        transform.DOShakePosition(0.4f, strength: new Vector3(0.3f, 0, 0), vibrato: 15);
     }
 }
